@@ -22,11 +22,12 @@ import torch
 from torch.optim.optimizer import Optimizer, ParamsT
 
 from emerging_optimizers import registry, utils
+from emerging_optimizers.orthogonalized_optimizers.muon_utils import NSCoeffT, newton_schulz
 
 
 __all__ = ["Iso"]
 
-RetractionT = Literal["qr", "polar", "cayley"]
+RetractionT = Literal["qr", "polar", "cayley", "newton_schulz"]
 
 
 def _qr_retraction(
@@ -64,6 +65,22 @@ def _cayley_retraction(
     return torch.linalg.solve(lhs, rhs)
 
 
+def _newton_schulz_retraction(
+    point: torch.Tensor,
+    momentum: torch.Tensor,
+    step_size: float,
+    coefficient_type: NSCoeffT = "polar_express",
+    num_ns_steps: int = 8,
+) -> torch.Tensor:
+    matrix = point - step_size * momentum
+    return newton_schulz(
+        matrix,
+        steps=num_ns_steps,
+        coefficient_type=coefficient_type,
+        use_syrk=True,
+    )
+
+
 def _retract_factors(
     u: torch.Tensor,
     v: torch.Tensor,
@@ -94,6 +111,8 @@ def _retract_factors(
         retract = _polar_retraction
     elif retraction == "cayley":
         retract = _cayley_retraction
+    elif retraction == "newton_schulz":
+        retract = _newton_schulz_retraction
     else:
         raise ValueError(f"Invalid retraction: {retraction}")
 
@@ -138,7 +157,7 @@ class Iso(Optimizer):
             raise ValueError(f"Invalid learning rate: {lr}")
         if not 0.0 <= momentum < 1.0:
             raise ValueError(f"Invalid momentum value: {momentum}")
-        if retraction not in ("qr", "polar", "cayley"):
+        if retraction not in ("qr", "polar", "cayley", "newton_schulz"):
             raise ValueError(f"Invalid retraction: {retraction}")
 
         defaults = {
