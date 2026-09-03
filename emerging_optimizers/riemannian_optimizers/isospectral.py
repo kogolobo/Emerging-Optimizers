@@ -77,7 +77,7 @@ def _newton_schulz_retraction(
         matrix,
         steps=num_ns_steps,
         coefficient_type=coefficient_type,
-        use_syrk=True,
+        use_syrk=matrix.is_cuda,
     )
 
 
