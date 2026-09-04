@@ -21,11 +21,11 @@ import torch
 import triton
 
 from emerging_optimizers import utils
-from emerging_optimizers.riemannian_optimizers.isospectral import (
-    _cayley_retraction,
-    _newton_schulz_retraction,
-    _polar_retraction,
-    _qr_retraction,
+from emerging_optimizers.riemannian_optimizers.retractions.stiefel import (
+    cayley_retraction,
+    newton_schulz_retraction,
+    polar_retraction,
+    qr_retraction,
 )
 
 
@@ -112,35 +112,35 @@ def run_case(
     mom_v = torch.randn_like(v_init)
 
     # --- Correctness & Numerical Precision ---
-    ref_u = _polar_retraction(u_init, mom_u, lr)
+    ref_u = polar_retraction(u_init, mom_u, lr)
 
-    qr_u = _qr_retraction(u_init, mom_u, lr)
-    cayley_u = _cayley_retraction(u_init, mom_u, lr)
-    ns5_u = _newton_schulz_retraction(u_init, mom_u, lr, num_ns_steps=5)
-    ns8_u = _newton_schulz_retraction(u_init, mom_u, lr, num_ns_steps=8)
+    qr_u = qr_retraction(u_init, mom_u, lr)
+    cayley_u = cayley_retraction(u_init, mom_u, lr)
+    ns5_u = newton_schulz_retraction(u_init, mom_u, lr, num_ns_steps=5)
+    ns8_u = newton_schulz_retraction(u_init, mom_u, lr, num_ns_steps=8)
 
     acc = test_numerical_accuracy(ref_u, qr_u, cayley_u, ns5_u, ns8_u)
 
     # --- Latency Benchmarking (Factor U + Factor V) ---
     with utils.fp32_matmul_precision(fp32_prec):
-        t_polar = bench(lambda: (_polar_retraction(u_init, mom_u, lr), _polar_retraction(v_init, mom_v, lr)))
-        t_qr = bench(lambda: (_qr_retraction(u_init, mom_u, lr), _qr_retraction(v_init, mom_v, lr)))
+        t_polar = bench(lambda: (polar_retraction(u_init, mom_u, lr), polar_retraction(v_init, mom_v, lr)))
+        t_qr = bench(lambda: (qr_retraction(u_init, mom_u, lr), qr_retraction(v_init, mom_v, lr)))
         t_cayley = bench(
             lambda: (
-                _cayley_retraction(u_init, mom_u, lr),
-                _cayley_retraction(v_init, mom_v, lr),
+                cayley_retraction(u_init, mom_u, lr),
+                cayley_retraction(v_init, mom_v, lr),
             )
         )
         t_ns5 = bench(
             lambda: (
-                _newton_schulz_retraction(u_init, mom_u, lr, num_ns_steps=5),
-                _newton_schulz_retraction(v_init, mom_v, lr, num_ns_steps=5),
+                newton_schulz_retraction(u_init, mom_u, lr, num_ns_steps=5),
+                newton_schulz_retraction(v_init, mom_v, lr, num_ns_steps=5),
             )
         )
         t_ns8 = bench(
             lambda: (
-                _newton_schulz_retraction(u_init, mom_u, lr, num_ns_steps=8),
-                _newton_schulz_retraction(v_init, mom_v, lr, num_ns_steps=8),
+                newton_schulz_retraction(u_init, mom_u, lr, num_ns_steps=8),
+                newton_schulz_retraction(v_init, mom_v, lr, num_ns_steps=8),
             )
         )
 
